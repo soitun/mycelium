@@ -75,5 +75,4 @@ function showit() {
 function getmycelium(){
 	wget https://github.com/threefoldtech/mycelium/releases/latest/download/mycelium-x86_64-unknown-linux-musl.tar.gz \
 		-O- | gunzip -c | tar xvf - -C ${PWD}
-
 }
