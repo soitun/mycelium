@@ -68,3 +68,10 @@ tun = { git = "https://github.com/LeeSmet/rust-tun", features = ["async"] }
 
 [target.'cfg(target_os = "ios")'.dependencies]
 tun = { git = "https://github.com/LeeSmet/rust-tun", features = ["async"] }
+
+[dev-dependencies]
+criterion = "0.5"
+
+[[bench]]
+name = "data_decode"
+harness = false

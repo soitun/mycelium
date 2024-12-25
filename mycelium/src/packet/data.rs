@@ -41,6 +41,132 @@ impl Codec {
     }
 }
 
+pub fn decode(src: &mut BytesMut) -> Result<Option<DataPacket>, std::io::Error> {
+    // Determine the length of the data
+    let HeaderValues { len, hop_limit } = {
+        // Check we have enough data to decode
+        if src.len() < DATA_PACKET_HEADER_SIZE {
+            return Ok(None);
+        }
+
+        let raw_header = src.get_u32();
+        // Hop limit is the last 8 bits.
+        let hop_limit = (raw_header & 0xFF) as u8;
+        let data_len = ((raw_header >> 8) & DATA_PACKET_LEN_MASK) as u16;
+        let header_vals = HeaderValues {
+            len: data_len,
+            hop_limit,
+        };
+        header_vals
+    };
+
+    let data_len = len as usize;
+
+    // Determine the source IP
+    let src_ip = {
+        if src.len() < 16 {
+            return Ok(None);
+        }
+
+        // Decode octets
+        let mut ip_bytes = [0u8; 16];
+        ip_bytes.copy_from_slice(&src[..16]);
+        let src_ip = Ipv6Addr::from(ip_bytes);
+        src.advance(16);
+
+        src_ip
+    };
+
+    // Determine the destination IP
+    let dest_ip = {
+        if src.len() < 16 {
+            return Ok(None);
+        }
+
+        // Decode octets
+        let mut ip_bytes = [0u8; 16];
+        ip_bytes.copy_from_slice(&src[..16]);
+        let dest_ip = Ipv6Addr::from(ip_bytes);
+        src.advance(16);
+
+        dest_ip
+    };
+
+    // Check we have enough data to decode
+    if src.len() < data_len {
+        return Ok(None);
+    }
+
+    // Decode octets
+    let mut data = vec![0u8; data_len];
+    data.copy_from_slice(&src[..data_len]);
+    src.advance(data_len);
+
+    Ok(Some(DataPacket {
+        raw_data: data,
+        hop_limit,
+        dst_ip: dest_ip,
+        src_ip,
+    }))
+}
+
+pub fn decode_zero(src: &mut BytesMut) -> Result<Option<DataPacket>, std::io::Error> {
+    // Determine the length of the data
+    let HeaderValues { len, hop_limit } = {
+        // Check we have enough data to decode
+        if src.len() < DATA_PACKET_HEADER_SIZE {
+            return Ok(None);
+        }
+
+        let raw_header = src.get_u32();
+        // Hop limit is the last 8 bits.
+        let hop_limit = (raw_header & 0xFF) as u8;
+        let data_len = ((raw_header >> 8) & DATA_PACKET_LEN_MASK) as u16;
+        let header_vals = HeaderValues {
+            len: data_len,
+            hop_limit,
+        };
+        header_vals
+    };
+
+    let data_len = len as usize;
+
+    // Determine the source IP
+    let src_ip = {
+        if src.len() < 16 {
+            return Ok(None);
+        }
+
+        let ip_buf = src.split_to(16);
+        Ipv6Addr::from(<[u8; 16]>::try_from(&ip_buf[..]).unwrap())
+    };
+
+    // Determine the destination IP
+    let dest_ip = {
+        if src.len() < 16 {
+            return Ok(None);
+        }
+
+        let ip_buf = src.split_to(16);
+        Ipv6Addr::from(<[u8; 16]>::try_from(&ip_buf[..]).unwrap())
+    };
+
+    // Check we have enough data to decode
+    if src.len() < data_len {
+        return Ok(None);
+    }
+
+    // Split the data portion
+    let raw_data = src.split_to(data_len);
+
+    Ok(Some(DataPacket {
+        raw_data: raw_data.to_vec(),
+        hop_limit,
+        dst_ip: dest_ip,
+        src_ip,
+    }))
+}
+
 impl Decoder for Codec {
     type Item = DataPacket;
     type Error = std::io::Error;

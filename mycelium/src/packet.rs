@@ -4,7 +4,7 @@ pub use data::DataPacket;
 use tokio_util::codec::{Decoder, Encoder};
 
 mod control;
-mod data;
+pub mod data;
 
 /// Current version of the protocol being used.
 const PROTOCOL_VERSION: u8 = 1;
